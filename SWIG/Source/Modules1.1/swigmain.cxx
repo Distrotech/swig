@@ -24,7 +24,9 @@ static char cvsroot[] = "$Header$";
  *
  ***********************************************************************/
 
+#ifndef MACSWIG
 #include "swigconfig.h"
+#endif
 #include "mod11.h"
 #include "tcl8.h"
 #include "python.h"
@@ -32,13 +34,15 @@ static char cvsroot[] = "$Header$";
 
 #include "perl5.h"
 #include "guile.h"
-#ifdef OLD
 #include "java.h"
-#endif
 #include "mzscheme.h"
 #include "ruby.h"
 
 #include <ctype.h>
+#ifdef MACSWIG
+#include <console.h>
+#include <SIOUX.h>
+#endif
 
 #ifndef SWIG_LANG
 #define SWIG_LANG PYTHON
@@ -66,6 +70,12 @@ int main(int argc, char **argv) {
   int i;
   Language *dl = new SWIG_LANG;
   extern int SWIG_main(int, char **, Language *);
+
+#ifdef MACSWIG
+  SIOUXSettings.asktosaveonclose = false;
+  argc = ccommand(&argv);
+#endif
+
   Swig_init_args(argc,argv);
 
   // Get options
@@ -88,11 +98,9 @@ int main(int argc, char **argv) {
 	  } else if (strcmp(argv[i],"-guile") == 0) {
 	      dl = new GUILE;
 	      Swig_mark_arg(i);
-#ifdef OLD
 	  } else if (strcmp(argv[i],"-java") == 0) {
 	      dl = new JAVA;
 	      Swig_mark_arg(i);
-#endif
 	  } else if (strcmp(argv[i],"-mzscheme") == 0) {
 	      dl = new MZSCHEME;
 	      Swig_mark_arg(i);

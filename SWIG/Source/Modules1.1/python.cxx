@@ -13,6 +13,9 @@ static char cvsroot[] = "$Header$";
 
 #include "mod11.h"
 #include "python.h"
+#ifndef MACSWIG
+#include "swigconfig.h"
+#endif
 
 static  String       *const_code = 0;
 static  String       *shadow_methods = 0;
@@ -24,19 +27,20 @@ static  int           have_defarg = 0;
 static  int           have_output;
 static  int           use_kw = 0;
 static  int           noopt = 1;
-static  FILE         *f_shadow;
+static  FILE         *f_shadow = 0;
 static  Hash         *hash;
-static  Hash         *symbols;
 static  String       *classes;
 static  String       *func;
 static  String       *vars;
 static  String       *pragma_include = 0;
 static  String       *import_file = 0;
+static  List         *import_stack = 0;
 static  String       *methods;
 static  char         *class_name;
 
 static char *usage = (char *)"\
 Python Options (available with -python)\n\
+     -ldflags        - Print runtime libraries to link with\n\
      -globals name   - Set name used to access C global variable ('cvar' by default).\n\
      -module name    - Set module name\n\
      -interface name - Set the lib name\n\
@@ -108,6 +112,9 @@ PYTHON::parse_args(int argc, char *argv[]) {
 	    Swig_mark_arg(i);
 	  } else if (strcmp(argv[i],"-help") == 0) {
 	    fputs(usage,stderr);
+	  } else if (strcmp (argv[i], "-ldflags") == 0) {
+	    printf("%s\n", SWIG_PYTHON_RUNTIME);
+	    SWIG_exit (EXIT_SUCCESS);
 	  }
       }
   }
@@ -123,7 +130,6 @@ void
 PYTHON::parse() {
 
   hash           = NewHash();
-  symbols        = NewHash();
   const_code     = NewString("");
   shadow_methods = NewString("");
   classes        = NewString("");
@@ -131,6 +137,7 @@ PYTHON::parse() {
   vars           = NewString("");
   pragma_include = NewString("");
   methods        = NewString("");
+  import_stack   = NewList();
 
   Swig_banner(f_runtime);
 
@@ -154,30 +161,35 @@ PYTHON::parse() {
  * ----------------------------------------------------------------------------- */
 void
 PYTHON::set_module(char *mod_name) {
-
-  /* If an "import" method has been set and we're in shadow class mode,
-     output a python command to load the module */
-
-  if (import_file) {
-    if (!(strcmp(Char(import_file),input_file+strlen(input_file)-strlen(Char(import_file))))) {
-      if (shadow) {
-	Printf(f_shadow,"\nfrom %s import *\n", mod_name);
-      }
-      Delete(import_file);
-      import_file = 0;
-    }
-  }
   if (module) return;
   module = NewString(mod_name);
 }
 
 /* -----------------------------------------------------------------------------
- * PYTHON::import(char *filename)
+ * PYTHON::import_start(char *modname)
  * ----------------------------------------------------------------------------- */
+
 void
-PYTHON::import(char *filename) {
-  if (import_file) Delete(import_file);
-  import_file = NewString(filename);
+PYTHON::import_start(char *modname) {
+  if (shadow) {
+    Printf(f_shadow,"import %s\n", modname);
+  }
+  /* Save the old module */
+  if (import_file) {
+    Append(import_stack,import_file);
+  }
+  import_file = NewString(modname);
+}
+
+void 
+PYTHON::import_end() {
+  Delete(import_file);
+  if (Len(import_stack)) {
+    import_file = Copy(Getitem(import_stack,Len(import_stack)-1));
+    Delitem(import_stack,Len(import_stack)-1);
+  } else {
+    import_file = 0;
+  }
 }
 
 /* -----------------------------------------------------------------------------
@@ -550,22 +562,14 @@ PYTHON::create_function(char *name, char *iname, SwigType *d, ParmList *l) {
   } else {
     switch(SwigType_type(d)) {
     case T_INT: case T_UINT: case T_BOOL:
-      Printf(f->code,"    resultobj = Py_BuildValue(\"i\",result);\n");
-      break;
     case T_SHORT: case T_USHORT:
-      Printf(f->code,"    resultobj = Py_BuildValue(\"h\",result);\n");
-      break;
     case T_LONG : case T_ULONG:
-      Printf(f->code,"    resultobj = Py_BuildValue(\"l\",result);\n");
-      break;
     case T_SCHAR: case T_UCHAR :
-      Printf(f->code,"    resultobj = Py_BuildValue(\"b\",result);\n");
+      Printf(f->code,"    resultobj = PyInt_FromLong((long)result);\n");
       break;
     case T_DOUBLE :
-      Printf(f->code,"    resultobj = Py_BuildValue(\"d\",result);\n");
-      break;
     case T_FLOAT :
-      Printf(f->code,"    resultobj = Py_BuildValue(\"f\",result);\n");
+      Printf(f->code,"    resultobj = PyFloat_FromDouble(result);\n");
       break;
     case T_CHAR :
       Printf(f->code,"    resultobj = Py_BuildValue(\"c\",result);\n");
@@ -577,7 +581,7 @@ PYTHON::create_function(char *name, char *iname, SwigType *d, ParmList *l) {
       SwigType_del_pointer(d);
       break;
     case T_STRING:
-      Printf(f->code,"    resultobj = Py_BuildValue(\"s\", result);\n");
+      Printf(f->code,"    resultobj = PyString_FromString(result);\n");
       break;
     case T_POINTER: case T_ARRAY: case T_REFERENCE:
       SwigType_remember(d);
@@ -881,14 +885,32 @@ PYTHON::link_variable(char *name, char *iname, SwigType *t) {
 	       0);
 	break;
 
-      case T_POINTER: case T_ARRAY: case T_REFERENCE:
+      case T_POINTER: case T_REFERENCE:
 	SwigType_remember(t);
 	Printv(getf->code,
 	       tab4, "pyobj = SWIG_NewPointerObj((void *)", name,
 	       ", SWIGTYPE", SwigType_manglestr(t), ");\n",
 	       0);
 	break;
-
+      case T_ARRAY:
+	{
+	  SwigType_remember(t);
+	  SwigType *ta = Copy(t);
+	  SwigType *aop = SwigType_pop(ta);
+	  if (SwigType_type(ta) == T_CHAR) {
+	    Printv(getf->code,
+		   tab4, "pyobj = PyString_FromString(", name, ");\n",
+		   0);
+	  } else {
+	    Printv(getf->code,
+		   tab4, "pyobj = SWIG_NewPointerObj((void *)", name,
+		   ", SWIGTYPE", SwigType_manglestr(t), ");\n",
+		   0);
+	  }
+	  Delete(ta);
+	  Delete(aop);
+	}
+	break;
       default:
 	Printf(stderr,"Unable to link with type %s\n", SwigType_str(t,0));
 	break;
@@ -919,7 +941,7 @@ PYTHON::link_variable(char *name, char *iname, SwigType *t) {
  * PYTHON::declare_const()
  * ----------------------------------------------------------------------------- */
 void
-PYTHON::declare_const(char *name, char *, SwigType *type, char *value) {
+PYTHON::declare_const(char *name, char *iname, SwigType *type, char *value) {
   char   *tm;
 
   if ((tm = Swig_typemap_lookup((char*)"const",type,name,value,name,0))) {
@@ -930,21 +952,21 @@ PYTHON::declare_const(char *name, char *, SwigType *type, char *value) {
     case T_SHORT: case T_USHORT:
     case T_LONG: case T_ULONG:
     case T_SCHAR: case T_UCHAR:
-      Printv(const_code, tab4, "{ SWIG_PY_INT,     \"", name, "\", (long) ", value, ", 0, 0, 0},\n", 0);
+      Printv(const_code, tab4, "{ SWIG_PY_INT,     \"", iname, "\", (long) ", value, ", 0, 0, 0},\n", 0);
       break;
     case T_DOUBLE:
     case T_FLOAT:
-      Printv(const_code, tab4, "{ SWIG_PY_FLOAT,   \"", name, "\", 0, (double) ", value, ", 0,0},\n", 0);
+      Printv(const_code, tab4, "{ SWIG_PY_FLOAT,   \"", iname, "\", 0, (double) ", value, ", 0,0},\n", 0);
       break;
     case T_CHAR :
-      Printf(const_code,"    { SWIG_PY_STRING, \"%s\", 0, 0, (void *) \"%s\", 0 }, \n", name, value);
+      Printf(const_code,"    { SWIG_PY_STRING, \"%s\", 0, 0, (void *) \"%s\", 0 }, \n", iname, value);
       break;
     case T_STRING:
-      Printf(const_code,"    { SWIG_PY_STRING, \"%s\", 0, 0, (void *) \"%s\", 0 }, \n", name, value);
+      Printf(const_code,"    { SWIG_PY_STRING, \"%s\", 0, 0, (void *) \"%s\", 0 }, \n", iname, value);
       break;
     case T_POINTER: case T_ARRAY: case T_REFERENCE:
       SwigType_remember(type);
-      Printv(const_code, tab4, "{ SWIG_PY_POINTER, \"", name, "\", 0, 0, (void *) ", value, ", &SWIGTYPE", SwigType_manglestr(type), "}, \n", 0);
+      Printv(const_code, tab4, "{ SWIG_PY_POINTER, \"", iname, "\", 0, 0, (void *) ", value, ", &SWIGTYPE", SwigType_manglestr(type), "}, \n", 0);
       break;
     default:
       Printf(stderr,"%s : Line %d. Unsupported constant value.\n", input_file, line_number);
@@ -953,7 +975,7 @@ PYTHON::declare_const(char *name, char *, SwigType *type, char *value) {
     }
   }
   if ((shadow) && (!(shadow & PYSHADOW_MEMBER))) {
-    Printv(vars,name, " = ", module, ".", name, "\n", 0);
+    Printv(vars,iname, " = ", module, ".", iname, "\n", 0);
   }
 }
 
@@ -1020,16 +1042,23 @@ PYTHON::add_native(char *name, char *funcname, SwigType *, ParmList *) {
 void
 PYTHON::cpp_class_decl(char *name, char *rename, char *type) {
     String *stype;
+    String *importname;
     if (shadow) {
+      if ((import_file) && (!strchr(rename,'.'))) {
+	importname = NewStringf("%s.%s", import_file, rename);
+      } else {
+	importname = NewString(rename);
+      }
       stype = NewString(name);
       SwigType_add_pointer(stype);
-      Setattr(hash,stype,rename);
+      Setattr(hash,stype,importname);
       Delete(stype);
+      /*      Printf(stdout,"cpp_class_decl: %s %s %s\n", name,importname,type); */
       /* Add full name of datatype to the hash table */
       if (strlen(type) > 0) {
 	stype = NewStringf("%s %s", type, name);
 	SwigType_add_pointer(stype);
-	Setattr(hash,stype,rename);
+	Setattr(hash,stype,importname);
 	Delete(stype);
       }
     }
@@ -1235,20 +1264,15 @@ void
 PYTHON::cpp_member_func(char *name, char *iname, SwigType *t, ParmList *l) {
   char *realname;
   int   oldshadow;
-  char  cname[1024];
 
   /* Create the default member function */
   oldshadow = shadow;    /* Disable shadowing when wrapping member functions */
   if (shadow) shadow = shadow | PYSHADOW_MEMBER;
   this->Language::cpp_member_func(name,iname,t,l);
   shadow = oldshadow;
-  if (shadow) {
-    realname = iname ? iname : name;
 
-    /* Check to see if we've already seen this */
-    sprintf(cname,"python:%s::%s",class_name,realname);
-    if (Getattr(symbols,cname)) return;
-    Setattr(symbols,cname,cname);
+  if (shadow && !is_multiple_definition()) {
+    realname = iname ? iname : name;
 
     if (strcmp(realname,"__repr__") == 0)
       have_repr = 1;
@@ -1295,19 +1319,13 @@ void
 PYTHON::cpp_constructor(char *name, char *iname, ParmList *l) {
   char *realname;
   int   oldshadow = shadow;
-  char  cname[1024];
 
   if (shadow) shadow = shadow | PYSHADOW_MEMBER;
   this->Language::cpp_constructor(name,iname,l);
   shadow = oldshadow;
 
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     realname = iname ? iname : class_name;
-
-    /* Check to see if we've already seen this */
-    sprintf(cname,":python:constructor:%s::%s",class_name,realname);
-    if (Getattr(symbols,cname)) return;
-    Setattr(symbols,cname,cname);
 
     if (!have_constructor) {
       if (use_kw)
@@ -1353,13 +1371,13 @@ PYTHON::cpp_destructor(char *name, char *newname) {
   if (shadow) shadow = shadow | PYSHADOW_MEMBER;
   this->Language::cpp_destructor(name,newname);
   shadow = oldshadow;
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     if (newname) realname = newname;
     else realname = class_renamed ? class_name : name;
 
     Printv(pyclass, tab4, "def __del__(self,", module, "=", module, "):\n", 0);
     emitAddPragmas(pyclass,(char*)"__del__",(char*)tab8);
-    Printv(pyclass, tab8, "if self.thisown == 1 :\n",
+    Printv(pyclass, tab8, "if getattr(self,'thisown',0):\n",
 	   tab8, tab4, module, ".", Swig_name_destroy(realname), "(self)\n", 0);
 
     have_destructor = 1;
@@ -1461,12 +1479,15 @@ PYTHON::cpp_inherit(char **baseclass,int) {
 
   /* Now tell the Python module that we're inheriting from a base class */
   while (baseclass[i]) {
-    bc = GetChar(hash,baseclass[i]);
+    String *bs = NewString(baseclass[i]);
+    SwigType_add_pointer(bs);
+    bc = GetChar(hash,bs);
     if (bc) {
       if (first_base) Putc(',',base_class);
       Printv(base_class,bc,0);
       first_base = 1;
     }
+    Delete(bs);
     i++;
   }
   if (!first_base) {
@@ -1483,22 +1504,15 @@ PYTHON::cpp_variable(char *name, char *iname, SwigType *t) {
   char *realname;
   int   inhash = 0;
   int   oldshadow = shadow;
-  char  cname[512];
 
   if (shadow) shadow = shadow | PYSHADOW_MEMBER;
   this->Language::cpp_variable(name,iname,t);
   shadow = oldshadow;
 
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     have_getattr = 1;
     have_setattr = 1;
     realname = iname ? iname : name;
-
-    /* Check to see if we've already seen this */
-    sprintf(cname,"python:%s::%s:",class_name,realname);
-    if (Getattr(symbols,cname)) return;
-
-    Setattr(symbols,cname,cname);
 
     /* Figure out if we've seen this datatype before */
     if (is_shadow(t)) inhash = 1;
@@ -1523,19 +1537,13 @@ void
 PYTHON::cpp_declare_const(char *name, char *iname, SwigType *type, char *value) {
   char *realname;
   int   oldshadow = shadow;
-  char  cname[512];
 
   if (shadow) shadow = shadow | PYSHADOW_MEMBER;
   this->Language::cpp_declare_const(name,iname,type,value);
   shadow = oldshadow;
 
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     realname = iname ? iname : name;
-
-    /* Check to see if we've already seen this */
-    sprintf(cname,"python:%s::%s", class_name, realname);
-    if (Getattr(symbols,cname)) return;
-    Setattr(symbols,cname,cname);
     Printv(cinit, tab4, realname, " = ", module, ".", Swig_name_member(class_name,realname), "\n", 0);
   }
 }
@@ -1547,6 +1555,6 @@ void
 PYTHON::add_typedef(SwigType *t, char *name) {
   if (!shadow) return;
   if (is_shadow(t)) {
-    cpp_class_decl(name,Char(is_shadow(t)),"");
+    cpp_class_decl(name,Char(is_shadow(t)), (char *) "");
   }
 }

@@ -14,9 +14,13 @@ static char cvsroot[] = "$Header$";
 #include "mod11.h"
 #include "tcl8.h"
 #include <ctype.h>
+#ifndef MACSWIG
+#include "swigconfig.h"
+#endif
 
 static char *usage = (char*)"\
 Tcl 8.0 Options (available with -tcl)\n\
+     -ldflags        - Print runtime libraries to link with\n\
      -module name    - Set name of module\n\
      -prefix name    - Set a prefix to be appended to all names\n\
      -namespace      - Build module into a Tcl 8 namespace. \n\
@@ -76,6 +80,9 @@ TCL8::parse_args(int argc, char *argv[]) {
 	    Swig_mark_arg(i);
 	  } else if (strcmp(argv[i],"-help") == 0) {
 	    fputs(usage,stderr);
+	  } else if (strcmp (argv[i], "-ldflags") == 0) {
+	    printf("%s\n", SWIG_TCL_RUNTIME);
+	    SWIG_exit (EXIT_SUCCESS);
 	  }
       }
   }
@@ -86,7 +93,7 @@ TCL8::parse_args(int argc, char *argv[]) {
     ns_name = Copy(prefix);
 
   }
-  if (prefix)
+  if (prefix && Len(prefix))
     Append(prefix,"_");
 
   Preprocessor_define((void *) "SWIGTCL 1",0);
@@ -230,7 +237,7 @@ TCL8::close(void) {
   Printf(f_init,"}\n");
 
   Printf(f_init,"for (i = 0; swig_variables[i].name; i++) {\n");
-  Printf(f_init,"Tcl_SetVar(interp, (char *) swig_variables[i].name, \"\", TCL_GLOBAL_ONLY);\n");
+  Printf(f_init,"Tcl_SetVar(interp, (char *) swig_variables[i].name, (char *) \"\", TCL_GLOBAL_ONLY);\n");
   Printf(f_init,"Tcl_TraceVar(interp, (char *) swig_variables[i].name, TCL_TRACE_READS | TCL_GLOBAL_ONLY, swig_variables[i].get, (ClientData) swig_variables[i].addr);\n");
   Printf(f_init,"Tcl_TraceVar(interp, (char *) swig_variables[i].name, TCL_TRACE_WRITES | TCL_GLOBAL_ONLY, swig_variables[i].set, (ClientData) swig_variables[i].addr);\n");
   Printf(f_init,"}\n");
@@ -759,7 +766,7 @@ TCL8::link_variable(char *name, char *iname, SwigType *t) {
  * ----------------------------------------------------------------------------- */
 
 void
-TCL8::declare_const(char *name, char *, SwigType *type, char *value) {
+TCL8::declare_const(char *name, char *iname, SwigType *type, char *value) {
   int OldStatus = Status;
   SwigType *t;
   char      var_name[256];
@@ -784,7 +791,7 @@ TCL8::declare_const(char *name, char *, SwigType *type, char *value) {
     switch(SwigType_type(type)) {
     case T_BOOL: case T_INT: case T_DOUBLE:
       Printf(f_header,"static %s %s = %s;\n", SwigType_str(type,0), var_name, value);
-      link_variable(var_name,name,type);
+      link_variable(var_name,iname,type);
       break;
 
     case T_SHORT:
@@ -801,7 +808,7 @@ TCL8::declare_const(char *name, char *, SwigType *type, char *value) {
       sprintf(var_name,"%s_char",var_name);
       t = NewString("char");
       SwigType_add_pointer(t);
-      link_variable(var_name,name,t);
+      link_variable(var_name,iname,t);
       Delete(t);
       break;
 
@@ -820,25 +827,25 @@ TCL8::declare_const(char *name, char *, SwigType *type, char *value) {
       sprintf(var_name,"%s_char",var_name);
       t = NewSwigType(T_CHAR);
       SwigType_add_pointer(t);
-      link_variable(var_name,name,t);
+      link_variable(var_name,iname,t);
       Delete(t);
       break;
 
     case T_FLOAT:
       Printf(f_header,"static %s %s = (%s) (%s);\n", SwigType_lstr(type,0), var_name, SwigType_lstr(type,0), value);
-      link_variable(var_name,name,type);
+      link_variable(var_name,iname,type);
       break;
 
     case T_CHAR:
       SwigType_add_pointer(type);
       Printf(f_header,"static %s %s = \"%s\";\n", SwigType_lstr(type,0), var_name, value);
-      link_variable(var_name,name,type);
+      link_variable(var_name,iname,type);
       SwigType_del_pointer(type);
       break;
 
     case T_STRING:
       Printf(f_header,"static %s %s = \"%s\";\n", SwigType_lstr(type,0), var_name, value);
-      link_variable(var_name,name,type);
+      link_variable(var_name,iname,type);
       break;
 
     case T_POINTER: case T_ARRAY: case T_REFERENCE:
@@ -855,7 +862,7 @@ TCL8::declare_const(char *name, char *, SwigType *type, char *value) {
       Printf(f_init,"\t SWIG_MakePtr(%s_char, (void *) %s, SWIGTYPE%s);\n",
 	     var_name, var_name, SwigType_manglestr(type));
       sprintf(var_name,"%s_char",var_name);
-      link_variable(var_name,name,t);
+      link_variable(var_name,iname,t);
       Delete(t);
       break;
 
@@ -971,6 +978,9 @@ TCL8::cpp_close_class() {
     t = NewStringf("%s%s", class_type, real_classname);
     SwigType_add_pointer(t);
 
+    // Catch all: eg. a class with only static functions and/or variables will not have 'remembered'
+    SwigType_remember(t);
+
     if (have_destructor) {
       Printv(code, "static void swig_delete_", class_name, "(void *obj) {\n", 0);
       if (CPlusPlus) {
@@ -1014,7 +1024,7 @@ void TCL8::cpp_member_func(char *name, char *iname, SwigType *t, ParmList *l) {
   String  *rname;
 
   this->Language::cpp_member_func(name,iname,t,l);
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     realname = iname ? iname : name;
     /* Add stubs for this member to our class handler function */
 
@@ -1033,7 +1043,7 @@ void TCL8::cpp_variable(char *name, char *iname, SwigType *t) {
 
   this->Language::cpp_variable(name, iname, t);
 
-  if (shadow) {
+  if (shadow && !is_multiple_definition()) {
     realname = iname ? iname : name;
     Printv(attributes, tab4, "{ \"-", realname, "\",", 0);
 
@@ -1064,4 +1074,9 @@ void
 TCL8::cpp_destructor(char *name, char *newname) {
   this->Language::cpp_destructor(name,newname);
   have_destructor = 1;
+}
+
+void
+TCL8::import_start(char *) {
+  /* Does nothing */
 }

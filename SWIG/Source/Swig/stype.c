@@ -124,6 +124,12 @@ SwigType *NewSwigType(int t) {
   case T_UCHAR:
     return NewString("unsigned char");
     break;
+  case T_STRING: {
+    SwigType *t = NewString("char");
+    SwigType_add_pointer(t);
+    return t;
+    break;
+  }
   case T_VOID:
     return NewString("void");
     break;
@@ -283,7 +289,7 @@ List *SwigType_split(SwigType *t) {
 /* -----------------------------------------------------------------------------
  * SwigType_pop()
  *
- * Pop off the first type-constructor object and update the type
+ * Pop off the first type-constructor object and updates the type
  * ----------------------------------------------------------------------------- */
 
 String *SwigType_pop(SwigType *t)
@@ -462,6 +468,14 @@ int SwigType_isconst(SwigType *t) {
   return 0;
 }
 
+int SwigType_isenum(SwigType *t) {
+  char *c = Char(t);
+  if (strncmp(c,"enum ",5) == 0) {
+    return 1;
+  }
+  return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * SwigType_base()
  *
@@ -584,6 +598,22 @@ void SwigType_array_setdim(SwigType *t, int n, String_or_char *rep) {
 }
 
 /* -----------------------------------------------------------------------------
+ * SwigType_array_type()
+ *
+ * Return the base type of an array
+ * ----------------------------------------------------------------------------- */
+
+SwigType *
+SwigType_array_type(SwigType *ty) {
+  SwigType *t;
+  t = Copy(ty);
+  while (SwigType_isarray(t)) {
+    Delete(SwigType_pop(t));
+  }
+  return t;
+}
+
+/* -----------------------------------------------------------------------------
  * SwigType_default()
  *
  * Create the default string for this datatype.   This takes a type and strips it
@@ -612,6 +642,12 @@ SwigType *SwigType_default(SwigType *t) {
   while ((r1 = SwigType_typedef_resolve(r))) {
     if (r != t) Delete(r);
     r = r1;
+  }
+  if (SwigType_isqualifier(r)) {
+    if (r == t) r = Copy(t);
+    do {
+      Delete(SwigType_pop(r));
+    } while (SwigType_isqualifier(r));
   }
   if (SwigType_ispointer(r)) {
     def = NewString("p.SWIGPOINTER");
@@ -705,6 +741,67 @@ SwigType_str(SwigType *s, const String_or_char *id)
 }
 
 /* -----------------------------------------------------------------------------
+ * SwigType_ltype(SwigType *ty)
+ *
+ * Create a locally assignable type
+ * ----------------------------------------------------------------------------- */
+
+SwigType *
+SwigType_ltype(SwigType *s) {
+  String *result;
+  String *element;
+  SwigType *td, *tc = 0;
+  List *elements;
+  int nelements, i;
+  int firstarray = 1;
+
+  result = NewString("");
+  tc = Copy(s);
+  /* Nuke all leading qualifiers */
+  while (SwigType_isqualifier(tc)) {
+    Delete(SwigType_pop(tc));
+  }
+
+  /* Resolve any typedef definitions */
+  td = SwigType_typedef_resolve(tc);
+  
+  /* Clean this up */
+  
+  if (td && (SwigType_isconst(td) || SwigType_isarray(td) || SwigType_isenum(td))) {
+    /* We need to use the typedef type */
+    Delete(tc);
+    tc = td;
+  } else if (td) {
+    Delete(td);
+  }
+  elements = SwigType_split(tc);
+  nelements = Len(elements);
+  /* Now, walk the type list and start emitting */
+  for (i = 0; i < nelements; i++) {
+    element = Getitem(elements,i);
+    if (SwigType_ispointer(element)) {
+      Append(result,element);
+      firstarray = 0;
+    } else if (SwigType_isreference(element)) {
+      Append(result,"p.");
+      firstarray = 0;
+    } else if (SwigType_isarray(element) && firstarray) {
+      Append(result,"p.");
+      firstarray = 0;
+    } else if (SwigType_isqualifier(element)) {
+      /* Do nothing. Ignore */
+    } else if (SwigType_isenum(element)) {
+      Append(result,"int");
+    } else {
+      Append(result,element);
+    }
+  }
+  Delete(elements);
+  Delete(tc);
+  return result;
+}
+
+/* -----------------------------------------------------------------------------
  * SwigType_lstr(DOH *s, DOH *id)
  *
  * Produces a type-string that is suitable as a lvalue in an expression.
@@ -723,144 +820,11 @@ String *
 SwigType_lstr(SwigType *s, const String_or_char *id)
 {
   String *result;
-  String *element = 0, *nextelement;
-  List *elements;
-  int nelements, i;
-  int firstarray = 1;
-  SwigType  *td;
+  SwigType  *tc;
 
-  if (id) {
-    result = NewString(Char(id));
-  } else {
-    result = NewString("");
-  }
-
-  td = SwigType_typedef_resolve(s);
-  if ((td) && (SwigType_isconst(td) || SwigType_isarray(td))) {
-      elements = SwigType_split(td);
-  } else {
-    elements = SwigType_split(s);
-  }
-  if (td) Delete(td);
-  nelements = Len(elements);
-
-  if (nelements > 0) {
-    element = Getitem(elements,0);
-  }
-  /* Now, walk the type list and start emitting */
-  for (i = 0; i < nelements; i++) {
-    if (i < (nelements - 1)) {
-      nextelement = Getitem(elements,i+1);
-    } else {
-      nextelement = 0;
-    }
-    if (SwigType_ispointer(element)) {
-      Insert(result,0,"*");
-      if ((nextelement) && ((SwigType_isfunction(nextelement) || (SwigType_isarray(nextelement))))) {
-	Insert(result,0,"(");
-	Append(result,")");
-      }
-      firstarray = 0;
-    } else if (SwigType_isreference(element)) {
-      Insert(result,0,"*");
-    } else if (SwigType_isarray(element)) {
-      if (firstarray) {
-	Insert(result,0,"*");
-	while (nextelement && (SwigType_isarray(nextelement))) {
-	  i++;
-	  nextelement = Getitem(elements,i+1);
-	}
-	if ((nextelement) && ((SwigType_isfunction(nextelement) || (SwigType_isarray(nextelement))))) {
-	  Insert(result,0,"(");
-	  Append(result,")");
-	}
-	firstarray = 0;
-      } else {
-	DOH *size;
-	Append(result,"[");
-	size = SwigType_parm(element);
-	Append(result,size);
-	Append(result,"]");
-	Delete(size);
-      }
-    } else if (SwigType_isfunction(element)) {
-      DOH *parms, *p;
-      int j, plen;
-      Append(result,"(");
-      parms = SwigType_parmlist(element);
-      plen = Len(parms);
-      for (j = 0; j < plen; j++) {
-	p = SwigType_str(Getitem(parms,j),0);
-	Append(result,p);
-	if (j < (plen-1)) Append(result,",");
-      }
-      Append(result,")");
-      Delete(parms);
-    } else if (SwigType_isqualifier(element)) {
-    } else {
-      Insert(result,0," ");
-      Insert(result,0,element);
-    }
-    element = nextelement;
-  }
-  Delete(elements);
-  return Swig_temp_result(result);
-}
-
-
-/* -----------------------------------------------------------------------------
- * SwigType_ltype(SwigType *ty)
- *
- * Returns a type object corresponding to the string created by lstr
- * ----------------------------------------------------------------------------- */
-
-SwigType *
-SwigType_ltype(SwigType *s) {
-  String *result;
-  String *element, *nextelement;
-  SwigType *td;
-  List *elements;
-  int nelements, i;
-  int firstarray = 1;
-
-  result = NewString("");
-  td = SwigType_typedef_resolve(s);
-  if ((td) && (SwigType_isconst(td) || SwigType_isarray(td))) {
-      elements = SwigType_split(td);
-  } else {
-    elements = SwigType_split(s);
-  }
-  if (td) Delete(td);
-  nelements = Len(elements);
-  /* Now, walk the type list and start emitting */
-  for (i = 0; i < nelements; i++) {
-    element = Getitem(elements,i);
-    if (SwigType_ispointer(element)) {
-      Append(result,element);
-      firstarray = 0;
-    } else if (SwigType_isreference(element)) {
-      Append(result,"p.");
-    } else if (SwigType_isarray(element)) {
-      if (firstarray) {
-	Append(result,"p.");
-	while (i < (nelements - 1)) {
-	  element = Getitem(elements,i+1);
-	  if (!SwigType_isarray(element)) break;
-	  i++;
-	}
-	firstarray = 0;
-      } else {
-	Append(result,element);
-      }
-    } else if (SwigType_isfunction(element)) {
-      Append(result,element);
-    } else if (SwigType_isqualifier(element)) {
-    } else {
-      Append(result,element);
-    }
-    element = nextelement;
-  }
-  Delete(elements);
+  tc = SwigType_ltype(s);
+  result = SwigType_str(tc,id);
+  Delete(tc);
   return result;
 }
 
@@ -874,18 +838,30 @@ SwigType_ltype(SwigType *s) {
 String *SwigType_rcaststr(SwigType *s, const String_or_char *name) {
   String *result, *cast;
   String *element = 0, *nextelement;
-  SwigType *td;
+  SwigType *td, *rs, *tc = 0;
   List *elements;
   int      nelements, i;
   int      clear = 1;
   int      firstarray = 1;
 
   result = NewString("");
-  td = SwigType_typedef_resolve(s);
-  if ((td) && (SwigType_isconst(td) || SwigType_isarray(td))) {
-      elements = SwigType_split(td);
+
+  if (SwigType_isconst(s)) {
+    tc = Copy(s);
+    Delete(SwigType_pop(tc));
+    rs = tc;
   } else {
-    elements = SwigType_split(s);
+    rs = s;
+  }
+
+  td = SwigType_typedef_resolve(rs);
+  if ((td) && (SwigType_isconst(td) || SwigType_isarray(td))) {
+    elements = SwigType_split(td);
+  } else if (td && SwigType_isenum(td)) {
+    elements = SwigType_split(rs);
+    clear = 0;
+  } else {
+    elements = SwigType_split(rs);
   }
   if (td) Delete(td);
   nelements = Len(elements);
@@ -942,6 +918,9 @@ String *SwigType_rcaststr(SwigType *s, const String_or_char *name) {
       Insert(result,0,q);
       Delete(q);
       clear = 0;
+    } else if (SwigType_isenum(element)) {
+      Insert(result,0,element);
+      clear = 0;
     } else {
       Insert(result,0," ");
       Insert(result,0,element);
@@ -961,6 +940,7 @@ String *SwigType_rcaststr(SwigType *s, const String_or_char *name) {
     Append(cast,name);
   }
   Delete(result);
+  Delete(tc);
   return Swig_temp_result(cast);
 }
 
@@ -1045,6 +1025,10 @@ static void init_scopes() {
 int SwigType_typedef(SwigType *type, String_or_char *name) {
   init_scopes();
   if (Getattr(scopes[scope_level],name)) return -1;
+  if (Cmp(type,name) == 0) {
+    return 0;
+  }
+
   Setattr(scopes[scope_level],name,type);
   if (default_cache)
     Delattr(default_cache,type);
@@ -1158,7 +1142,7 @@ SwigType *SwigType_typedef_resolve(SwigType *t) {
   level = scope_level;
   while (level >= 0) {
     /* See if we know about this type */
-    type = Getattr(scopes[scope_level],base);
+    type = Getattr(scopes[level],base);
     if (type) break;
     level--;
   }
@@ -1202,7 +1186,7 @@ int SwigType_istypedef(SwigType *t) {
   level = scope_level;
   while (level >= 0) {
     /* See if we know about this type */
-    type = Getattr(scopes[scope_level],base);
+    type = Getattr(scopes[level],base);
     if (type) {
       return 1;
     }
@@ -1284,6 +1268,8 @@ int SwigType_type(SwigType *t)
   if (strcmp(c,"double") == 0) return T_DOUBLE;
   if (strcmp(c,"void") == 0) return T_VOID;
   if (strcmp(c,"bool") == 0) return T_BOOL;
+  if (strcmp(c,"long long") == 0) return T_LONGLONG;
+  if (strcmp(c,"unsigned long long") == 0) return T_ULONGLONG;
   if (strncmp(c,"enum ",5) == 0) return T_INT;
   /* Hmmm. Unknown type */
   if (SwigType_istypedef(t)) {

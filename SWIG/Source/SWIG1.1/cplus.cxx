@@ -195,7 +195,7 @@ public:
   CPP_member() {
     signature = 0;
     is_static = 0;
-    is_virtual = 0;
+    is_virtual = NOT_VIRTUAL;
     base = 0;
     code = 0;
     file = 0;
@@ -366,6 +366,7 @@ public:
 
   void inherit(int mode) {
       // Set up the proper addmethods mode and provide C code (if provided)
+    if (mode & INHERIT_FUNC) {
       int oldaddmethods = AddMethods;
       AddMethods = new_method;
       Clear(CCode);
@@ -373,6 +374,7 @@ public:
       cplus_destructor(name,iname);
       AddMethods = oldaddmethods;
       Clear(CCode);
+    }
   }
 
   void emit() {
@@ -428,7 +430,7 @@ public:
     update_local_type(t);
     /* Check to see if it's read-only */
     if (SwigType_isarray(t) || SwigType_isconst(t)) {
-      if (!(Swig_typemap_search("memberin",t,name)))
+      if (!(Swig_typemap_search((char *) "memberin",t,name)))
 	Status = Status | STAT_READONLY;
     }
 
@@ -518,12 +520,11 @@ public:
   char        *classrename;           // New name of class (if applicable)
   char        *classtype;             // class type (struct, union, class)
   int          strip;                 // Strip off class declarator
-  int          wextern;               // Value of extern wrapper variable for this class
+  int          import_mode;               // Value of extern wrapper variable for this class
   int          have_constructor;      // Status bit indicating if we've seen a constructor
   int          have_destructor;       // Status bit indicating if a destructor has been seen
   int          is_abstract;           // Status bit indicating if this is an abstract class
   int          generate_default;      // Generate default constructors
-  int          objective_c;           // Set if this is an objective C class
   int          error;                 // Set if this class can't be generated
   int          line;                  // Line number
   char        **baseclass;            // Base classes (if any)
@@ -560,12 +561,11 @@ public:
     next = 0;
     members = 0;
     strip = 0;
-    wextern = WrapExtern;
+    import_mode = ImportMode;
     have_constructor = 0;
     have_destructor = 0;
     is_abstract = 0;
     generate_default = GenerateDefault;
-    objective_c = ObjCClass;
   }
 
   // ------------------------------------------------------------------------------
@@ -689,8 +689,7 @@ void CPP_class::create_all() {
     if (!c->error) {
       current_class = c;
       localtypes = c->local;
-      if ((!c->wextern) && (c->classtype)) {
-	ObjCClass = c->objective_c;
+      if ((!c->import_mode) && (c->classtype)) {
 	lang->cpp_open_class(c->classname,c->classrename,c->classtype,c->strip);
 	lang->cpp_pragma(c->pragmas);
 	c->create_default();
@@ -698,6 +697,16 @@ void CPP_class::create_all() {
 	  cplus_inherit_decl(c->baseclass);
 	c->emit_decls();
 	lang->cpp_close_class();
+      }
+      // Force brute patch to produce the proper casting code
+      // between "local" classes and "external" ones when
+      // %import is used.
+      else if ( (c->import_mode) && (c->classtype) ) {
+	SwigType *t;
+	t = NewString(c->classname);
+	SwigType_add_pointer(t);
+	SwigType_remember(t);
+	Delete(t);
       }
     }
     c = c->next;
@@ -823,7 +832,7 @@ void cplus_set_class(char *name) {
     current_class = new CPP_class(name,0);
     localtypes = current_class->local;
   }
-};
+}
 
 // This function closes a class open with cplus_set_class() 
 
@@ -869,7 +878,7 @@ void cplus_class_close(char *name) {
 
   // If we're in C++ or Objective-C mode. We're going to drop the class specifier
 
-  if ((CPlusPlus) || (ObjCClass)) {
+  if ((CPlusPlus)) {
     current_class->strip = 1;
   }
   
@@ -994,7 +1003,7 @@ void cplus_generate_types(char **baseclass) {
     if (bc) {
       // Generate a conversion function (but only for C++)
 
-      if (!current_class->objective_c) {
+      if (1) {
 	Clear(temp3);
 	Printv(temp3, "Swig", current_class->classname, "To", bc->classname,0);
 
@@ -1638,7 +1647,7 @@ void cplus_emit_static_func(char *classname, char *, char *classrename,
     if (strlen(bc) == 0) bc = classname;
     
     // Generate the name of the C wrapper function 
-    if ((!mode) && (!ObjCClass)) {
+    if (!mode) {
       sprintf(cname,"%s::%s", bc, mname);
     } else {
       strcpy(cname,Char(Swig_name_member(bc,mname)));
@@ -1995,7 +2004,7 @@ void cplus_emit_variable_set(char *classname, char *classtype, char *classrename
       } else if (!mode) {
 	/* Check for a member in typemap here */
 	String *target = NewStringf("%s->%s", Swig_cparm_name(0,0),mname);
-	char *tm = Swig_typemap_lookup("memberin",type,mname,Swig_cparm_name(0,1),target,0);
+	char *tm = Swig_typemap_lookup((char *) "memberin",type,mname,Swig_cparm_name(0,1),target,0);
 	if (!tm)
 	  emit_set_action(Swig_cmemberset_call(mname,type));
 	else
@@ -2038,7 +2047,7 @@ void cplus_emit_variable_set(char *classname, char *classtype, char *classrename
 void cplus_register_type(char *tname) {
   if (current_class)
     add_local_type(tname, current_class->classname);
-};
+}
 
 // -----------------------------------------------------------------------------
 // void cplus_register_scope(void *h) 

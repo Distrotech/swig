@@ -18,11 +18,9 @@
 
 extern    Language      *lang;
 extern    int           ForceExtern;
-extern    int           WrapExtern;
+extern    int           ImportMode;
 extern    void         *CCode;
 extern    int           GenerateDefault;
-extern    char         *objc_construct;
-extern    char         *objc_destruct;
 
 // Structure for holding typemap parameters
 
