@@ -28,14 +28,11 @@ extern "C" {
 
 #ifdef MACSWIG
 #define Status Swig_Status
-#undef stderr
-#define stderr swig_log
-extern  FILE   *swig_log;
 #endif
 
+#define NOT_VIRTUAL     0
 #define PLAIN_VIRTUAL   1
 #define PURE_VIRTUAL    2
-#define SUPER_VIRTUAL   3
 
 extern  FILE      *f_runtime;                       // Runtime code
 extern  DOH       *f_header;                        // Headers
@@ -51,8 +48,6 @@ extern  int       line_number;
 extern  int       start_line;
 extern  char     *input_file;                       // Current input file
 extern  int       CPlusPlus;                        // C++ mode
-extern  int       ObjC;                             // Objective-C mode
-extern  int       ObjCClass;                        // Objective-C style class
 extern  int       AddMethods;                       // AddMethods mode
 extern  int       NewObject;                        // NewObject mode
 extern  int       Inline;                           // Inline mode
@@ -214,6 +209,8 @@ public:
 
   virtual void import(char *filename);
 
+protected:
+  int is_multiple_definition(); // indicates whether the function has already been defined
 };
 
 /* Emit functions */
