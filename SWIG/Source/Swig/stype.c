@@ -124,6 +124,12 @@ SwigType *NewSwigType(int t) {
   case T_UCHAR:
     return NewString("unsigned char");
     break;
+  case T_STRING: {
+    SwigType *t = NewString("char");
+    SwigType_add_pointer(t);
+    return t;
+    break;
+  }
   case T_VOID:
     return NewString("void");
     break;
@@ -621,6 +627,12 @@ SwigType *SwigType_default(SwigType *t) {
     if (r != t) Delete(r);
     r = r1;
   }
+  if (SwigType_isqualifier(r)) {
+    if (r == t) r = Copy(t);
+    do {
+      Delete(SwigType_pop(r));
+    } while (SwigType_isqualifier(r));
+  }
   if (SwigType_ispointer(r)) {
     def = NewString("p.SWIGPOINTER");
   } else if (SwigType_isreference(r)) {
@@ -812,6 +824,8 @@ SwigType_lstr(SwigType *s, const String_or_char *id)
       Append(result,")");
       Delete(parms);
     } else if (SwigType_isqualifier(element)) {
+    } else if (SwigType_isenum(element)) {
+      Insert(result,0," int ");
     } else {
       Insert(result,0," ");
       Insert(result,0,element);
@@ -981,6 +995,9 @@ String *SwigType_rcaststr(SwigType *s, const String_or_char *name) {
       Insert(result,0," ");
       Insert(result,0,q);
       Delete(q);
+      clear = 0;
+    } else if (SwigType_isenum(element)) {
+      Insert(result,0,element);
       clear = 0;
     } else {
       Insert(result,0," ");
@@ -1203,7 +1220,7 @@ SwigType *SwigType_typedef_resolve(SwigType *t) {
   level = scope_level;
   while (level >= 0) {
     /* See if we know about this type */
-    type = Getattr(scopes[scope_level],base);
+    type = Getattr(scopes[level],base);
     if (type) break;
     level--;
   }
@@ -1247,7 +1264,7 @@ int SwigType_istypedef(SwigType *t) {
   level = scope_level;
   while (level >= 0) {
     /* See if we know about this type */
-    type = Getattr(scopes[scope_level],base);
+    type = Getattr(scopes[level],base);
     if (type) {
       return 1;
     }
@@ -1329,6 +1346,8 @@ int SwigType_type(SwigType *t)
   if (strcmp(c,"double") == 0) return T_DOUBLE;
   if (strcmp(c,"void") == 0) return T_VOID;
   if (strcmp(c,"bool") == 0) return T_BOOL;
+  if (strcmp(c,"long long") == 0) return T_LONGLONG;
+  if (strcmp(c,"unsigned long long") == 0) return T_ULONGLONG;
   if (strncmp(c,"enum ",5) == 0) return T_INT;
   /* Hmmm. Unknown type */
   if (SwigType_istypedef(t)) {

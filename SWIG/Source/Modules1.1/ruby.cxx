@@ -14,6 +14,9 @@ static char cvsroot[] = "$Header$";
 
 #include "mod11.h"
 #include "ruby.h"
+#ifndef MACSWIG
+#include "swigconfig.h"
+#endif
 
 #include <ctype.h>
 #include <string.h>
@@ -92,6 +95,7 @@ class RClass {
 
 static char *usage = (char*)"\
 Ruby Options (available with -ruby)\n\
+     -ldflags        - Print runtime libraries to link with\n\
      -module name    - Set module name\n\
      -feature name   - Set feature name (used by `require')\n";
 
@@ -155,6 +159,9 @@ void RUBY::parse_args(int argc, char *argv[]) {
 	}
       } else if (strcmp(argv[i],"-help") == 0) {
 	Printf(stderr,"%s\n", usage);
+      } else if (strcmp (argv[i], "-ldflags") == 0) {
+	printf("%s\n", SWIG_RUBY_RUNTIME);
+	SWIG_exit (EXIT_SUCCESS);
       }
     }
   }
@@ -702,7 +709,6 @@ void RUBY::link_variable(char *name, char *iname, SwigType *t) {
 
   /* create getter */
   getfname = NewString(Swig_name_get(name));
-  Replace(getfname,"::", "_", DOH_REPLACE_ANY); /* FIXME: Swig_name_get bug? */
   Printv(getf->def, "static VALUE\n", getfname, "(", 0);
   Printf(getf->def, "VALUE self");
   Printf(getf->def, ") {");
@@ -738,7 +744,6 @@ void RUBY::link_variable(char *name, char *iname, SwigType *t) {
     char *target;
 
     setfname = NewString(Swig_name_set(name));
-    Replace(setfname,"::", "_", DOH_REPLACE_ANY); /* FIXME: Swig_name_get bug? */
     Printv(setf->def, "static VALUE\n", setfname, "(VALUE self, ", 0);
     Printf(setf->def, "VALUE _val) {");
 
@@ -746,7 +751,7 @@ void RUBY::link_variable(char *name, char *iname, SwigType *t) {
       SwigType_add_pointer(t);
       Wrapper_add_localv(setf,"temp",SwigType_lstr(t,0), "temp",0);
       SwigType_del_pointer(t);
-      target = "temp";
+      target = (char *) "temp";
     } else {
       target = name;
     }
@@ -1004,7 +1009,10 @@ int RUBY::to_VALUE(SwigType *type, char *value, String *str, int raw) {
     Printv(str, "rb_float_new(", value, ")", 0);
     break;
   case T_CHAR:
-    Printv(str, "rb_str_new(&", value, ", 1)", 0);
+    if (raw)
+      Printv(str, "rb_str_new(\"", value, "\", 1)", 0);
+    else
+      Printv(str, "rb_str_new(&", value, ", 1)", 0);
     break;
   case T_BOOL:
     Printv(str, "(", value, " ? Qtrue : Qfalse)", 0);
@@ -1309,39 +1317,41 @@ void RUBY::cpp_destructor(char *name, char *newname) {
   current = DESTRUCTOR;
   this->Language::cpp_destructor(name, newname);
 
-  String *freefunc = NewString("");
-  String *freeproto = NewString("");
-  String *freebody = NewString("");
-
-  Printv(freefunc, "free_", klass->cname, 0);
-  Printv(freeproto, "static void ", freefunc, "(", klass->type, " *);\n", 0);
-  Printv(freebody, "static void\n",
-	 freefunc, "(", klass->type, " *", Swig_cparm_name(0,0), ") {\n",
-	 tab4, 0);
-  if (AddMethods) {
-    Printv(freebody, Swig_name_destroy(name), "(", Swig_cparm_name(0,0), ")", 0);
-  } else {
-    /* When no addmethods mode, swig emits no destroy function. */
-    if (CPlusPlus)
-      Printv(freebody, Swig_cppdestructor_call(), 0);
-    else
-      Printv(freebody, Swig_cdestructor_call(), 0);
+  if (!is_multiple_definition()) {
+    String *freefunc = NewString("");
+    String *freeproto = NewString("");
+    String *freebody = NewString("");
+  
+    Printv(freefunc, "free_", klass->cname, 0);
+    Printv(freeproto, "static void ", freefunc, "(", klass->type, " *);\n", 0);
+    Printv(freebody, "static void\n",
+  	 freefunc, "(", klass->type, " *", Swig_cparm_name(0,0), ") {\n",
+  	 tab4, 0);
+    if (AddMethods) {
+      Printv(freebody, Swig_name_destroy(name), "(", Swig_cparm_name(0,0), ")", 0);
+    } else {
+      /* When no addmethods mode, swig emits no destroy function. */
+      if (CPlusPlus)
+        Printv(freebody, Swig_cppdestructor_call(), 0);
+      else
+        Printv(freebody, Swig_cdestructor_call(), 0);
+    }
+    Printv(freebody, ";\n}\n", 0);
+    if (CPlusPlus) {
+      Insert(freefunc,0,"VOIDFUNC(");
+      Append(freefunc,")");
+    }
+  
+    Replace(klass->header,"$freefunc", freefunc, DOH_REPLACE_ANY);
+    Replace(klass->header,"$freeproto", freeproto, DOH_REPLACE_ANY);
+    Printv(f_wrappers, freebody, 0);
+  
+    klass->destructor_defined = 1;
+    current = NO_CPP;
+    Delete(freefunc);
+    Delete(freeproto);
+    Delete(freebody);
   }
-  Printv(freebody, ";\n}\n", 0);
-  if (CPlusPlus) {
-    Insert(freefunc,0,"VOIDFUNC(");
-    Append(freefunc,")");
-  }
-
-  Replace(klass->header,"$freefunc", freefunc, DOH_REPLACE_ANY);
-  Replace(klass->header,"$freeproto", freeproto, DOH_REPLACE_ANY);
-  Printv(f_wrappers, freebody, 0);
-
-  klass->destructor_defined = 1;
-  current = NO_CPP;
-  Delete(freefunc);
-  Delete(freeproto);
-  Delete(freebody);
 }
 
 /* ---------------------------------------------------------------------
