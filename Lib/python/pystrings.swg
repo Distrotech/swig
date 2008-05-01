@@ -5,10 +5,20 @@
 SWIGINTERN int
 SWIG_AsCharPtrAndSize(PyObject *obj, char** cptr, size_t* psize, int *alloc)
 {
-  if (PyString_Check(obj)) {
+%#if PY_VERSION_HEX>=0x03000000
+  /* TODO: Check this! Should we use a seperate function for Unicode string? */
+  if (PyUnicode_Check(obj)) 
+%#else  
+  if (PyString_Check(obj)) 
+%#endif
+  {
     char *cstr; Py_ssize_t len;
+%#if PY_VERSION_HEX>=0x03000000
+    cstr = PyUnicode_AsStringAndSize(obj, &len);
+%#else
     PyString_AsStringAndSize(obj, &cstr, &len);
-    if (cptr)  {
+%#endif
+    if (cptr) { 
       if (alloc) {
 	/* 
 	   In python the user should not be able to modify the inner

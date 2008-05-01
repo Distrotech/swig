@@ -1,3 +1,22 @@
+/* Compatibility marcos for Python 3 */
+#if PY_VERSION_HEX >= 0x03000000
+
+#define PyClass_Check(obj) PyObject_IsInstance(obj, (PyObject *)&PyType_Type)
+
+#define PyInt_Check(x) PyLong_Check(x)
+#define PyInt_AsLong(x) PyLong_AsLong(x)
+#define PyInt_FromLong(x) PyLong_FromLong(x)
+
+#define PyString_Format(fmt, args)  PyUnicode_Format(fmt, args)
+
+PyObject* PyInstance_NewRaw(PyObject *cls, PyObject *dict)
+{
+	PyObject* obj = ((PyTypeObject *)cls)->tp_alloc((PyTypeObject *)cls, 0);
+	*_PyObject_GetDictPtr(obj) = dict;
+    return obj;
+}
+
+#endif
 
 /* Add PyOS_snprintf for old Pythons */
 #if PY_VERSION_HEX < 0x02020000

@@ -110,8 +110,13 @@ swig_varlink_type(void) {
   if (!type_init) {
     const PyTypeObject tmp
       = {
+      /* PyOjbect header changed in Python 3 */
+#if PY_VERSION_HEX >= 0x03000000
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+#else
       PyObject_HEAD_INIT(NULL)
       0,                                  /* Number of items in variable part (ob_size) */
+#endif
       (char *)"swigvarlink",              /* Type name (tp_name) */
       sizeof(swig_varlinkobject),         /* Basic size (tp_basicsize) */
       0,                                  /* Itemsize (tp_itemsize) */
@@ -147,7 +152,10 @@ swig_varlink_type(void) {
 #endif
     };
     varlink_type = tmp;
+    /* for Python 3 we already assigned the ob_type in PyVarObject_HEAD_INIT() */
+#if PY_VERSION_HEX < 0x03000000
     varlink_type.ob_type = &PyType_Type;
+#endif
     type_init = 1;
   }
   return &varlink_type;
