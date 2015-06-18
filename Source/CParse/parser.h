@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 2.7.  */
+/* A Bison parser, made by GNU Bison 2.7.1.  */
 
 /* Bison interface for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,128 +50,140 @@ extern int yydebug;
      HBLOCK = 259,
      POUND = 260,
      STRING = 261,
-     INCLUDE = 262,
-     IMPORT = 263,
-     INSERT = 264,
-     CHARCONST = 265,
-     NUM_INT = 266,
-     NUM_FLOAT = 267,
-     NUM_UNSIGNED = 268,
-     NUM_LONG = 269,
-     NUM_ULONG = 270,
-     NUM_LONGLONG = 271,
-     NUM_ULONGLONG = 272,
-     NUM_BOOL = 273,
-     TYPEDEF = 274,
-     TYPE_INT = 275,
-     TYPE_UNSIGNED = 276,
-     TYPE_SHORT = 277,
-     TYPE_LONG = 278,
-     TYPE_FLOAT = 279,
-     TYPE_DOUBLE = 280,
-     TYPE_CHAR = 281,
-     TYPE_WCHAR = 282,
-     TYPE_VOID = 283,
-     TYPE_SIGNED = 284,
-     TYPE_BOOL = 285,
-     TYPE_COMPLEX = 286,
-     TYPE_TYPEDEF = 287,
-     TYPE_RAW = 288,
-     TYPE_NON_ISO_INT8 = 289,
-     TYPE_NON_ISO_INT16 = 290,
-     TYPE_NON_ISO_INT32 = 291,
-     TYPE_NON_ISO_INT64 = 292,
-     LPAREN = 293,
-     RPAREN = 294,
-     COMMA = 295,
-     SEMI = 296,
-     EXTERN = 297,
-     INIT = 298,
-     LBRACE = 299,
-     RBRACE = 300,
-     PERIOD = 301,
-     CONST_QUAL = 302,
-     VOLATILE = 303,
-     REGISTER = 304,
-     STRUCT = 305,
-     UNION = 306,
-     EQUAL = 307,
-     SIZEOF = 308,
-     MODULE = 309,
-     LBRACKET = 310,
-     RBRACKET = 311,
-     BEGINFILE = 312,
-     ENDOFFILE = 313,
-     ILLEGAL = 314,
-     CONSTANT = 315,
-     NAME = 316,
-     RENAME = 317,
-     NAMEWARN = 318,
-     EXTEND = 319,
-     PRAGMA = 320,
-     FEATURE = 321,
-     VARARGS = 322,
-     ENUM = 323,
-     CLASS = 324,
-     TYPENAME = 325,
-     PRIVATE = 326,
-     PUBLIC = 327,
-     PROTECTED = 328,
-     COLON = 329,
-     STATIC = 330,
-     VIRTUAL = 331,
-     FRIEND = 332,
-     THROW = 333,
-     CATCH = 334,
-     EXPLICIT = 335,
-     USING = 336,
-     NAMESPACE = 337,
-     NATIVE = 338,
-     INLINE = 339,
-     TYPEMAP = 340,
-     EXCEPT = 341,
-     ECHO = 342,
-     APPLY = 343,
-     CLEAR = 344,
-     SWIGTEMPLATE = 345,
-     FRAGMENT = 346,
-     WARN = 347,
-     LESSTHAN = 348,
-     GREATERTHAN = 349,
-     DELETE_KW = 350,
-     LESSTHANOREQUALTO = 351,
-     GREATERTHANOREQUALTO = 352,
-     EQUALTO = 353,
-     NOTEQUALTO = 354,
-     QUESTIONMARK = 355,
-     TYPES = 356,
-     PARMS = 357,
-     NONID = 358,
-     DSTAR = 359,
-     DCNOT = 360,
-     TEMPLATE = 361,
-     OPERATOR = 362,
-     COPERATOR = 363,
-     PARSETYPE = 364,
-     PARSEPARM = 365,
-     PARSEPARMS = 366,
-     CAST = 367,
-     LOR = 368,
-     LAND = 369,
-     OR = 370,
-     XOR = 371,
-     AND = 372,
-     RSHIFT = 373,
-     LSHIFT = 374,
-     MINUS = 375,
-     PLUS = 376,
-     MODULO = 377,
-     SLASH = 378,
-     STAR = 379,
-     LNOT = 380,
-     NOT = 381,
-     UMINUS = 382,
-     DCOLON = 383
+     WSTRING = 262,
+     INCLUDE = 263,
+     IMPORT = 264,
+     INSERT = 265,
+     CHARCONST = 266,
+     WCHARCONST = 267,
+     NUM_INT = 268,
+     NUM_FLOAT = 269,
+     NUM_UNSIGNED = 270,
+     NUM_LONG = 271,
+     NUM_ULONG = 272,
+     NUM_LONGLONG = 273,
+     NUM_ULONGLONG = 274,
+     NUM_BOOL = 275,
+     TYPEDEF = 276,
+     TYPE_INT = 277,
+     TYPE_UNSIGNED = 278,
+     TYPE_SHORT = 279,
+     TYPE_LONG = 280,
+     TYPE_FLOAT = 281,
+     TYPE_DOUBLE = 282,
+     TYPE_CHAR = 283,
+     TYPE_WCHAR = 284,
+     TYPE_VOID = 285,
+     TYPE_SIGNED = 286,
+     TYPE_BOOL = 287,
+     TYPE_COMPLEX = 288,
+     TYPE_TYPEDEF = 289,
+     TYPE_RAW = 290,
+     TYPE_NON_ISO_INT8 = 291,
+     TYPE_NON_ISO_INT16 = 292,
+     TYPE_NON_ISO_INT32 = 293,
+     TYPE_NON_ISO_INT64 = 294,
+     LPAREN = 295,
+     RPAREN = 296,
+     COMMA = 297,
+     SEMI = 298,
+     EXTERN = 299,
+     INIT = 300,
+     LBRACE = 301,
+     RBRACE = 302,
+     PERIOD = 303,
+     CONST_QUAL = 304,
+     VOLATILE = 305,
+     REGISTER = 306,
+     STRUCT = 307,
+     UNION = 308,
+     EQUAL = 309,
+     SIZEOF = 310,
+     MODULE = 311,
+     LBRACKET = 312,
+     RBRACKET = 313,
+     BEGINFILE = 314,
+     ENDOFFILE = 315,
+     ILLEGAL = 316,
+     CONSTANT = 317,
+     NAME = 318,
+     RENAME = 319,
+     NAMEWARN = 320,
+     EXTEND = 321,
+     PRAGMA = 322,
+     FEATURE = 323,
+     VARARGS = 324,
+     ENUM = 325,
+     CLASS = 326,
+     TYPENAME = 327,
+     PRIVATE = 328,
+     PUBLIC = 329,
+     PROTECTED = 330,
+     COLON = 331,
+     STATIC = 332,
+     VIRTUAL = 333,
+     FRIEND = 334,
+     THROW = 335,
+     CATCH = 336,
+     EXPLICIT = 337,
+     STATIC_ASSERT = 338,
+     CONSTEXPR = 339,
+     THREAD_LOCAL = 340,
+     DECLTYPE = 341,
+     AUTO = 342,
+     NOEXCEPT = 343,
+     OVERRIDE = 344,
+     FINAL = 345,
+     USING = 346,
+     NAMESPACE = 347,
+     NATIVE = 348,
+     INLINE = 349,
+     TYPEMAP = 350,
+     EXCEPT = 351,
+     ECHO = 352,
+     APPLY = 353,
+     CLEAR = 354,
+     SWIGTEMPLATE = 355,
+     FRAGMENT = 356,
+     WARN = 357,
+     LESSTHAN = 358,
+     GREATERTHAN = 359,
+     DELETE_KW = 360,
+     DEFAULT = 361,
+     LESSTHANOREQUALTO = 362,
+     GREATERTHANOREQUALTO = 363,
+     EQUALTO = 364,
+     NOTEQUALTO = 365,
+     ARROW = 366,
+     QUESTIONMARK = 367,
+     TYPES = 368,
+     PARMS = 369,
+     NONID = 370,
+     DSTAR = 371,
+     DCNOT = 372,
+     TEMPLATE = 373,
+     OPERATOR = 374,
+     COPERATOR = 375,
+     PARSETYPE = 376,
+     PARSEPARM = 377,
+     PARSEPARMS = 378,
+     CAST = 379,
+     LOR = 380,
+     LAND = 381,
+     OR = 382,
+     XOR = 383,
+     AND = 384,
+     RSHIFT = 385,
+     LSHIFT = 386,
+     MINUS = 387,
+     PLUS = 388,
+     MODULO = 389,
+     SLASH = 390,
+     STAR = 391,
+     LNOT = 392,
+     NOT = 393,
+     UMINUS = 394,
+     DCOLON = 395
    };
 #endif
 /* Tokens.  */
@@ -179,136 +191,148 @@ extern int yydebug;
 #define HBLOCK 259
 #define POUND 260
 #define STRING 261
-#define INCLUDE 262
-#define IMPORT 263
-#define INSERT 264
-#define CHARCONST 265
-#define NUM_INT 266
-#define NUM_FLOAT 267
-#define NUM_UNSIGNED 268
-#define NUM_LONG 269
-#define NUM_ULONG 270
-#define NUM_LONGLONG 271
-#define NUM_ULONGLONG 272
-#define NUM_BOOL 273
-#define TYPEDEF 274
-#define TYPE_INT 275
-#define TYPE_UNSIGNED 276
-#define TYPE_SHORT 277
-#define TYPE_LONG 278
-#define TYPE_FLOAT 279
-#define TYPE_DOUBLE 280
-#define TYPE_CHAR 281
-#define TYPE_WCHAR 282
-#define TYPE_VOID 283
-#define TYPE_SIGNED 284
-#define TYPE_BOOL 285
-#define TYPE_COMPLEX 286
-#define TYPE_TYPEDEF 287
-#define TYPE_RAW 288
-#define TYPE_NON_ISO_INT8 289
-#define TYPE_NON_ISO_INT16 290
-#define TYPE_NON_ISO_INT32 291
-#define TYPE_NON_ISO_INT64 292
-#define LPAREN 293
-#define RPAREN 294
-#define COMMA 295
-#define SEMI 296
-#define EXTERN 297
-#define INIT 298
-#define LBRACE 299
-#define RBRACE 300
-#define PERIOD 301
-#define CONST_QUAL 302
-#define VOLATILE 303
-#define REGISTER 304
-#define STRUCT 305
-#define UNION 306
-#define EQUAL 307
-#define SIZEOF 308
-#define MODULE 309
-#define LBRACKET 310
-#define RBRACKET 311
-#define BEGINFILE 312
-#define ENDOFFILE 313
-#define ILLEGAL 314
-#define CONSTANT 315
-#define NAME 316
-#define RENAME 317
-#define NAMEWARN 318
-#define EXTEND 319
-#define PRAGMA 320
-#define FEATURE 321
-#define VARARGS 322
-#define ENUM 323
-#define CLASS 324
-#define TYPENAME 325
-#define PRIVATE 326
-#define PUBLIC 327
-#define PROTECTED 328
-#define COLON 329
-#define STATIC 330
-#define VIRTUAL 331
-#define FRIEND 332
-#define THROW 333
-#define CATCH 334
-#define EXPLICIT 335
-#define USING 336
-#define NAMESPACE 337
-#define NATIVE 338
-#define INLINE 339
-#define TYPEMAP 340
-#define EXCEPT 341
-#define ECHO 342
-#define APPLY 343
-#define CLEAR 344
-#define SWIGTEMPLATE 345
-#define FRAGMENT 346
-#define WARN 347
-#define LESSTHAN 348
-#define GREATERTHAN 349
-#define DELETE_KW 350
-#define LESSTHANOREQUALTO 351
-#define GREATERTHANOREQUALTO 352
-#define EQUALTO 353
-#define NOTEQUALTO 354
-#define QUESTIONMARK 355
-#define TYPES 356
-#define PARMS 357
-#define NONID 358
-#define DSTAR 359
-#define DCNOT 360
-#define TEMPLATE 361
-#define OPERATOR 362
-#define COPERATOR 363
-#define PARSETYPE 364
-#define PARSEPARM 365
-#define PARSEPARMS 366
-#define CAST 367
-#define LOR 368
-#define LAND 369
-#define OR 370
-#define XOR 371
-#define AND 372
-#define RSHIFT 373
-#define LSHIFT 374
-#define MINUS 375
-#define PLUS 376
-#define MODULO 377
-#define SLASH 378
-#define STAR 379
-#define LNOT 380
-#define NOT 381
-#define UMINUS 382
-#define DCOLON 383
+#define WSTRING 262
+#define INCLUDE 263
+#define IMPORT 264
+#define INSERT 265
+#define CHARCONST 266
+#define WCHARCONST 267
+#define NUM_INT 268
+#define NUM_FLOAT 269
+#define NUM_UNSIGNED 270
+#define NUM_LONG 271
+#define NUM_ULONG 272
+#define NUM_LONGLONG 273
+#define NUM_ULONGLONG 274
+#define NUM_BOOL 275
+#define TYPEDEF 276
+#define TYPE_INT 277
+#define TYPE_UNSIGNED 278
+#define TYPE_SHORT 279
+#define TYPE_LONG 280
+#define TYPE_FLOAT 281
+#define TYPE_DOUBLE 282
+#define TYPE_CHAR 283
+#define TYPE_WCHAR 284
+#define TYPE_VOID 285
+#define TYPE_SIGNED 286
+#define TYPE_BOOL 287
+#define TYPE_COMPLEX 288
+#define TYPE_TYPEDEF 289
+#define TYPE_RAW 290
+#define TYPE_NON_ISO_INT8 291
+#define TYPE_NON_ISO_INT16 292
+#define TYPE_NON_ISO_INT32 293
+#define TYPE_NON_ISO_INT64 294
+#define LPAREN 295
+#define RPAREN 296
+#define COMMA 297
+#define SEMI 298
+#define EXTERN 299
+#define INIT 300
+#define LBRACE 301
+#define RBRACE 302
+#define PERIOD 303
+#define CONST_QUAL 304
+#define VOLATILE 305
+#define REGISTER 306
+#define STRUCT 307
+#define UNION 308
+#define EQUAL 309
+#define SIZEOF 310
+#define MODULE 311
+#define LBRACKET 312
+#define RBRACKET 313
+#define BEGINFILE 314
+#define ENDOFFILE 315
+#define ILLEGAL 316
+#define CONSTANT 317
+#define NAME 318
+#define RENAME 319
+#define NAMEWARN 320
+#define EXTEND 321
+#define PRAGMA 322
+#define FEATURE 323
+#define VARARGS 324
+#define ENUM 325
+#define CLASS 326
+#define TYPENAME 327
+#define PRIVATE 328
+#define PUBLIC 329
+#define PROTECTED 330
+#define COLON 331
+#define STATIC 332
+#define VIRTUAL 333
+#define FRIEND 334
+#define THROW 335
+#define CATCH 336
+#define EXPLICIT 337
+#define STATIC_ASSERT 338
+#define CONSTEXPR 339
+#define THREAD_LOCAL 340
+#define DECLTYPE 341
+#define AUTO 342
+#define NOEXCEPT 343
+#define OVERRIDE 344
+#define FINAL 345
+#define USING 346
+#define NAMESPACE 347
+#define NATIVE 348
+#define INLINE 349
+#define TYPEMAP 350
+#define EXCEPT 351
+#define ECHO 352
+#define APPLY 353
+#define CLEAR 354
+#define SWIGTEMPLATE 355
+#define FRAGMENT 356
+#define WARN 357
+#define LESSTHAN 358
+#define GREATERTHAN 359
+#define DELETE_KW 360
+#define DEFAULT 361
+#define LESSTHANOREQUALTO 362
+#define GREATERTHANOREQUALTO 363
+#define EQUALTO 364
+#define NOTEQUALTO 365
+#define ARROW 366
+#define QUESTIONMARK 367
+#define TYPES 368
+#define PARMS 369
+#define NONID 370
+#define DSTAR 371
+#define DCNOT 372
+#define TEMPLATE 373
+#define OPERATOR 374
+#define COPERATOR 375
+#define PARSETYPE 376
+#define PARSEPARM 377
+#define PARSEPARMS 378
+#define CAST 379
+#define LOR 380
+#define LAND 381
+#define OR 382
+#define XOR 383
+#define AND 384
+#define RSHIFT 385
+#define LSHIFT 386
+#define MINUS 387
+#define PLUS 388
+#define MODULO 389
+#define SLASH 390
+#define STAR 391
+#define LNOT 392
+#define NOT 393
+#define UMINUS 394
+#define DCOLON 395
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
 {
-/* Line 2058 of yacc.c  */
-#line 1650 "CParse/parser.y"
+/* Line 2053 of yacc.c  */
+#line 1299 "CParse/parser.y"
 
   char  *id;
   List  *bases;
@@ -320,9 +344,10 @@ typedef union YYSTYPE
     String *bitfield;
     Parm   *throws;
     String *throwf;
+    String *nexcept;
   } dtype;
   struct {
-    char *type;
+    const char *type;
     String *filename;
     int   line;
   } loc;
@@ -334,6 +359,7 @@ typedef union YYSTYPE
     short      have_parms;
     ParmList  *throws;
     String    *throwf;
+    String    *nexcept;
   } decl;
   Parm         *tparms;
   struct {
@@ -352,8 +378,8 @@ typedef union YYSTYPE
   Node         *node;
 
 
-/* Line 2058 of yacc.c  */
-#line 357 "CParse/parser.h"
+/* Line 2053 of yacc.c  */
+#line 383 "CParse/parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
